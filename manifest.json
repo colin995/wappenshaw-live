@@ -1,15 +1,22 @@
 {
   "name": "Wappenshaw Ready Reckoner",
   "short_name": "Wappenshaw",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0b5f91",
+  "background_color": "#f7fbfe",
+  "theme_color": "#1261a0",
+  "description": "Bowls Wappenshaw Ready Reckoner and live leaderboard.",
   "icons": [
     {
-      "src": "/file_00000000bdcc8243bb519ab7619ace6c.png",
-      "sizes": "1024x1024",
-     "type": "image/png",
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

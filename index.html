@@ -462,27 +462,15 @@ async function savePlayers(){
   recalculateScores();
   localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
 
-  let pin=sessionStorage.getItem('wappenshawAdminPin')||'';
-  if(!pin){
-    pin=prompt('Enter Admin PIN')||'';
-    if(!pin) return false;
-    sessionStorage.setItem('wappenshawAdminPin',pin);
-  }
-
   try{
     const res=await fetch('/api/state',{
-      method:'PUT',
-      headers:{'Content-Type':'application/json','X-Admin-Pin':pin},
-      body:JSON.stringify({players:playerData})
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({players:playerData,results:[]})
     });
-    if(res.status===401){
-      sessionStorage.removeItem('wappenshawAdminPin');
-      alert('Incorrect Admin PIN.');
-      return false;
-    }
     if(!res.ok) throw new Error('save failed');
     cloudConnected=true;
-    setCloudStatus('Saved — player leaderboard updated',true);
+    setCloudStatus('Live shared leaderboard connected',true);
     return true;
   }catch(e){
     cloudConnected=false;

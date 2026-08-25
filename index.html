@@ -237,22 +237,17 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
 
   <section class="card">
     <div style="font-weight:800;font-size:18px;margin-bottom:8px">Players & Points</div>
-    <p class="help" style="margin-top:0">Win = 4 pts total • Draw = 2 pts total • Played = 1 pt • Stand Down = 2 pts • Each new result moves to the next week automatically</p>
+    <p class="help" style="margin-top:0">Highest Up = 4 pts • Win = 3 pts • Draw = 2 pts • Taking Part = 1 pt • Weeks continue automatically with no limit</p>
 
     <div class="week-controls">
       <div>
-        <label for="currentWeek" style="margin-bottom:6px">Current Week</label>
-        <select id="currentWeek">
-          <option value="1">Week 1</option>
-          <option value="2">Week 2</option>
-          <option value="3">Week 3</option>
-          <option value="4">Week 4</option>
-          <option value="5">Week 5</option>
-        </select>
+        <label style="margin-bottom:6px">Weeks</label>
+        <div class="message" id="weekStatus" style="margin:0">Unlimited weeks enabled</div>
       </div>
       <button class="secondary no-print" id="printLeaderboard" style="margin:0;padding:12px 14px">Print Leaderboard</button>
       <button class="secondary no-print" id="copyPlayerLink" style="margin:0;padding:12px 14px">Copy Player Link</button>
     </div>
+    <button class="secondary no-print" id="undoBtn" style="width:100%;margin:12px 0 16px">↩ Back / Undo Last Mistake</button>
 
     <div class="player-entry">
       <input id="playerName" type="text" placeholder="Enter player name">
@@ -357,18 +352,30 @@ function update(){
 }
 
 
-const pointValues = { win:4, draw:2, loss:1, stand:2 };
+const pointValues = { win:3, draw:2, loss:1 };
 let playerData = [];
 let cloudConnected = false;
+let undoStack = JSON.parse(localStorage.getItem('wappenshawUndoStack') || '[]');
 
 function normalisePlayers(players){
-  return (players||[]).map(p=>({
-    ...p,
-    points:Number(p.points||0),
-    shotsFor:Number(p.shotsFor||0),
-    shotsAgainst:Number(p.shotsAgainst||0),
-    rounds:(p.rounds||[]).map((r,i)=>({...r,week:Number(r.week||i+1),points:Number(r.points||0)}))
-  }));
+  return (players||[]).map(p=>{
+    const rounds=(p.rounds||[]).map((r,i)=>({
+      ...r,
+      week:Number(r.week||i+1),
+      result:r.result||'loss',
+      basePoints:Number(r.basePoints ?? (r.result==='win'?3:r.result==='draw'?2:1)),
+      points:Number(r.points ?? (r.result==='win'?3:r.result==='draw'?2:1)),
+      shotsFor:(r.shotsFor===null || r.shotsFor===undefined) ? null : Number(r.shotsFor),
+      shotsAgainst:(r.shotsAgainst===null || r.shotsAgainst===undefined) ? null : Number(r.shotsAgainst)
+    }));
+    return {
+      ...p,
+      points:Number(p.points||0),
+      shotsFor:Number(p.shotsFor||0),
+      shotsAgainst:Number(p.shotsAgainst||0),
+      rounds
+    };
+  });
 }
 
 function setCloudStatus(text, good=false){
@@ -378,24 +385,81 @@ function setCloudStatus(text, good=false){
   el.style.color=good?'#1261a0':'#647887';
 }
 
+function saveUndoStack(){
+  if(undoStack.length>30) undoStack=undoStack.slice(-30);
+  localStorage.setItem('wappenshawUndoStack',JSON.stringify(undoStack));
+}
+
+function rememberState(){
+  undoStack.push(JSON.stringify(playerData));
+  saveUndoStack();
+  updateUndoButton();
+}
+
+function updateUndoButton(){
+  const btn=document.getElementById('undoBtn');
+  if(!btn) return;
+  btn.disabled=undoStack.length===0;
+  btn.textContent=undoStack.length ? '↩ Back / Undo Last Mistake' : '↩ Nothing to Undo';
+  btn.style.opacity=undoStack.length ? '1' : '.55';
+}
+
+function recalculateScores(){
+  playerData.forEach(p=>{
+    (p.rounds||[]).forEach((r,i)=>{
+      r.week=Number(r.week||i+1);
+      r.basePoints=r.result==='win'?3:r.result==='draw'?2:1;
+      r.points=r.basePoints;
+    });
+  });
+
+  const weeks=new Set();
+  playerData.forEach(p=>(p.rounds||[]).forEach(r=>weeks.add(Number(r.week||1))));
+
+  weeks.forEach(week=>{
+    const candidates=[];
+    playerData.forEach(p=>{
+      const r=(p.rounds||[]).find(x=>Number(x.week||1)===week);
+      if(!r || r.result!=='win') return;
+      if(r.shotsFor===null || r.shotsAgainst===null) return;
+      candidates.push({r,diff:Number(r.shotsFor)-Number(r.shotsAgainst)});
+    });
+    if(!candidates.length) return;
+    const best=Math.max(...candidates.map(x=>x.diff));
+    candidates.forEach(x=>{
+      if(x.diff===best) x.r.points=4;
+    });
+  });
+
+  playerData.forEach(p=>{
+    p.points=(p.rounds||[]).reduce((sum,r)=>sum+Number(r.points||0),0);
+    p.shotsFor=(p.rounds||[]).reduce((sum,r)=>sum+(r.shotsFor===null?0:Number(r.shotsFor||0)),0);
+    p.shotsAgainst=(p.rounds||[]).reduce((sum,r)=>sum+(r.shotsAgainst===null?0:Number(r.shotsAgainst||0)),0);
+  });
+}
+
 async function loadPlayers(){
   try{
     const res=await fetch('/api/state',{cache:'no-store'});
     if(!res.ok) throw new Error('cloud unavailable');
     const state=await res.json();
     playerData=normalisePlayers(state.players);
+    recalculateScores();
     cloudConnected=true;
     localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
     setCloudStatus('Live shared leaderboard connected',true);
   }catch(e){
     playerData=normalisePlayers(JSON.parse(localStorage.getItem('wappenshawPlayers')||'[]'));
+    recalculateScores();
     cloudConnected=false;
     setCloudStatus('Using this device only until cloud storage is connected');
   }
   renderPlayers();
+  updateUndoButton();
 }
 
 async function savePlayers(){
+  recalculateScores();
   localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
 
   let pin=sessionStorage.getItem('wappenshawAdminPin')||'';
@@ -427,10 +491,21 @@ async function savePlayers(){
   }
 }
 
+async function undoLastChange(){
+  if(!undoStack.length) return;
+  playerData=normalisePlayers(JSON.parse(undoStack.pop()));
+  saveUndoStack();
+  recalculateScores();
+  await savePlayers();
+  renderPlayers();
+  updateUndoButton();
+}
+
 async function addPlayer(){
   const input=document.getElementById('playerName');
   const name=input.value.trim();
   if(!name) return;
+  rememberState();
   playerData.push({id:Date.now()+Math.floor(Math.random()*1000), name:name, points:0, rounds:[], shotsFor:0, shotsAgainst:0});
   input.value='';
   await savePlayers();
@@ -440,13 +515,19 @@ async function addPlayer(){
 async function setResult(id,result){
   const p=playerData.find(x=>x.id===id);
   if(!p) return;
+  rememberState();
   const week=(p.rounds||[]).length+1;
-  p.rounds.push({result:result,points:pointValues[result],week:week});
-  p.points += pointValues[result];
+  p.rounds.push({
+    result,
+    basePoints:pointValues[result],
+    points:pointValues[result],
+    week,
+    shotsFor:null,
+    shotsAgainst:null
+  });
   await savePlayers();
   renderPlayers();
 }
-
 
 async function addShots(id){
   const fEl=document.getElementById(`sf-${id}`);
@@ -454,20 +535,30 @@ async function addShots(id){
   const sf=parseInt(fEl.value,10);
   const sa=parseInt(aEl.value,10);
   if(!Number.isFinite(sf) || !Number.isFinite(sa) || sf<0 || sa<0) return;
+
   const p=playerData.find(x=>x.id===id);
   if(!p) return;
-  p.shotsFor += sf;
-  p.shotsAgainst += sa;
+
+  const round=(p.rounds||[])[p.rounds.length-1];
+  if(!round){
+    alert('Enter the result first, then add the shots.');
+    return;
+  }
+
+  rememberState();
+  round.shotsFor=sf;
+  round.shotsAgainst=sa;
+
   await savePlayers();
   renderPlayers();
 }
-
 
 function escapeHtml(s){
   return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
 
 async function removePlayer(id){
+  rememberState();
   playerData=playerData.filter(x=>x.id!==id);
   await savePlayers();
   renderPlayers();
@@ -489,10 +580,9 @@ function renderPlayers(){
         </div>
         <div>
           <div class="player-controls">
-            <button class="result-btn" onclick="setResult(${p.id},'win')">Win +4</button>
+            <button class="result-btn" onclick="setResult(${p.id},'win')">Win +3</button>
             <button class="result-btn" onclick="setResult(${p.id},'draw')">Draw +2</button>
-            <button class="result-btn" onclick="setResult(${p.id},'loss')">Played +1</button>
-            <button class="result-btn" onclick="setResult(${p.id},'stand')">Stand +2</button>
+            <button class="result-btn" onclick="setResult(${p.id},'loss')">Taking Part +1</button>
           <button class="remove-btn" onclick="removePlayer(${p.id})">Remove</button>
           </div>
           <div class="shot-entry">
@@ -502,6 +592,7 @@ function renderPlayers(){
           </div>
           <div class="shot-summary">
             For ${p.shotsFor} • Against ${p.shotsAgainst} • Up ${(p.shotsFor-p.shotsAgainst)>=0?'+':''}${p.shotsFor-p.shotsAgainst}
+            ${(p.rounds||[]).some(r=>r.result==='win' && Number(r.points)===4) ? ' • Highest Up awarded' : ''}
           </div>
         </div>
       </div>`).join('');
@@ -533,6 +624,8 @@ function renderPlayers(){
 
   // Unlimited weeks: create as many week columns as the longest player history needs.
   const maxWeek=Math.max(0,...playerData.map(p=>(p.rounds||[]).length));
+  const weekStatus=document.getElementById('weekStatus');
+  if(weekStatus) weekStatus.textContent=`Unlimited weeks enabled • ${maxWeek ? 'Week '+maxWeek+' reached' : 'ready for Week 1'}`;
 
   const weekly=[...playerData].map(p=>{
     const weeks=Array.from({length:maxWeek},(_,i)=>{
@@ -605,6 +698,7 @@ document.getElementById('showAdmin').addEventListener('click',()=>setView('admin
 document.getElementById('showPlayers').addEventListener('click',()=>{renderPlayers();setView('players')});
 
 document.getElementById('printLeaderboard').addEventListener('click',()=>window.print());
+document.getElementById('undoBtn').addEventListener('click',undoLastChange);
 document.getElementById('addPlayer').addEventListener('click',addPlayer);
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer()});
 

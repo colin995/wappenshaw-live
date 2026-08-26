@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1261a0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Wappenshaw Ready Reckoner</title>
+<style>
+:root{
+  --green:#1261a0; --green2:#083b66; --lime:#eaf4fc; --white:#fff;
+  --ink:#12324a; --muted:#647887; --line:#d6e5f0; --gold:#d7aa2b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; font-family:Arial,Helvetica,sans-serif; color:var(--ink);
+  background:linear-gradient(180deg,#dceefa 0,#f7fbfe 35%,#ffffff 100%);
+  min-height:100vh;
+}
+.app{max-width:680px;margin:auto;padding:18px 16px 34px}
+.hero{
+  background:linear-gradient(145deg,var(--green2),var(--green));color:#fff;
+  border-radius:26px;padding:22px 18px 20px;box-shadow:0 12px 28px rgba(0,0,0,.16);
+  text-align:center
+}
+.logo{
+  width:88px;height:88px;margin:0 auto 10px;border-radius:24px;background:#fff;
+  display:flex;align-items:center;justify-content:center;position:relative;
+  box-shadow:inset 0 0 0 4px rgba(18,97,160,.12)
+}
+.bowl{width:48px;height:48px;border-radius:50%;background:#111;position:absolute;left:16px;bottom:16px}
+.bowl:after{content:"";width:10px;height:10px;border-radius:50%;background:#f4d35e;position:absolute;right:8px;top:8px}
+.jack{width:19px;height:19px;border-radius:50%;background:white;border:2px solid #ddd;position:absolute;right:11px;top:17px}
+h1{margin:4px 0 5px;font-size:27px}.sub{margin:0;opacity:.9;font-weight:700}
+.card{
+  background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px;
+  margin-top:15px;box-shadow:0 7px 18px rgba(0,0,0,.06)
+}
+label{font-size:17px;font-weight:800;display:block;margin-bottom:10px}
+.inputrow{display:grid;grid-template-columns:1fr;gap:10px}
+input{
+  width:100%;font-size:30px;font-weight:800;text-align:center;padding:14px;
+  border:2px solid #a9cce5;border-radius:16px;color:var(--ink)
+}
+button{
+  border:0;border-radius:16px;background:var(--green);color:#fff;
+  font-size:17px;font-weight:800;padding:0 18px;cursor:pointer
+}
+button.secondary{width:100%;padding:14px;margin-top:12px;background:#fff;color:var(--green);border:2px solid var(--green)}
+button:active{transform:scale(.98)}
+.result-title{text-align:center;font-weight:800;font-size:18px;margin-bottom:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.stat{background:var(--lime);border:1px solid var(--line);border-radius:18px;text-align:center;padding:14px 5px}
+.stat b{display:block;font-size:38px;color:var(--green2);line-height:1}
+.stat span{display:block;margin-top:7px;font-size:14px;font-weight:800}
+.message{margin-top:14px;padding:12px 13px;border-radius:14px;background:#fff8dd;border-left:5px solid var(--gold);font-weight:800;text-align:center}
+.help{font-size:13px;line-height:1.5;color:var(--muted);margin:13px 2px 0}
+.table-wrap{max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:9px 5px;border-bottom:1px solid var(--line);text-align:center}
+th{background:#edf6fc;position:sticky;top:0;z-index:1}
+
+.player-entry{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+.player-entry input{font-size:18px;text-align:left;padding:12px 14px}
+.players-list{margin-top:14px;display:grid;gap:10px}
+.player-row{border:1px solid var(--line);border-radius:16px;padding:12px;background:#f8fbfe;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+.player-name{font-weight:800;font-size:17px}
+.player-controls{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.result-btn{border:1px solid #b8d3e6;background:#fff;color:var(--green2);padding:8px 10px;border-radius:10px;font-size:13px;font-weight:800}
+.remove-btn{background:#fff;color:#8a2f2f;border:1px solid #e0bcbc;padding:8px 10px;border-radius:10px;font-size:13px}
+.points-pill{min-width:42px;text-align:center;background:#eaf4fc;border:1px solid var(--line);border-radius:999px;padding:7px 10px;font-weight:800;color:var(--green2)}
+.player-meta{display:flex;align-items:center;gap:8px}
+.leaderboard-title{font-weight:800;font-size:18px;margin-top:18px;margin-bottom:8px}
+.leaderboard{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.leader-row{display:grid;grid-template-columns:44px 1fr 70px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center}
+.leader-row:last-child{border-bottom:0}
+.rank{font-weight:800;color:var(--green2)}
+.total{font-weight:800;text-align:right}
+@media(max-width:520px){.player-entry{grid-template-columns:1fr}.player-row{grid-template-columns:1fr}.player-controls{justify-content:flex-start}}
+
+
+.shot-entry{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-top:8px}
+.shot-entry input{font-size:16px;text-align:center;padding:9px}
+.shot-btn{padding:9px 12px;font-size:13px}
+.shot-summary{font-size:13px;color:var(--muted);margin-top:6px}
+.month-board{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-top:10px}
+.month-row{display:grid;grid-template-columns:42px 1fr 80px;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);align-items:center}
+.month-row:last-child{border-bottom:0}
+.up-positive{font-weight:800}
+
+
+.week-controls{
+  display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;
+  margin:14px 0
+}
+.week-controls select{
+  width:100%;font-size:17px;font-weight:700;padding:12px;
+  border:2px solid #a9cce5;border-radius:14px;color:var(--ink);background:#fff
+}
+.print-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;margin-top:10px}
+.print-table{width:100%;border-collapse:collapse;min-width:560px}
+.print-table th,.print-table td{padding:9px 7px;border-bottom:1px solid var(--line);text-align:center}
+.print-table th{background:#edf6fc}
+.print-table td.name{text-align:left;font-weight:700}
+.print-title{display:none}
+@media print{
+  body{background:#fff!important}
+  .hero,.card:not(.print-card),footer,.no-print{display:none!important}
+  .app{max-width:none;padding:0}
+  .print-card{display:block!important;box-shadow:none!important;border:0!important;margin:0!important;padding:0!important}
+  .print-title{display:block!important;text-align:center;margin-bottom:16px}
+  .print-table-wrap{overflow:visible;border:0}
+  .print-table{min-width:0;font-size:12pt}
+  .print-table th,.print-table td{border:1px solid #999;padding:8px}
+}
+
+
+.view-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.view-switch button{padding:12px}
+.view-switch button.active{background:var(--green2)}
+.player-view{display:none}
+.player-view.active,.admin-view.active{display:block}
+.admin-view{display:block}
+.readonly-note{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
+
+.player-view .print-table-wrap{overflow-x:auto}
+
+/* Mobile-friendly public leaderboard */
+.player-view .print-table-wrap{
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  border-radius:14px;
+}
+.player-view .print-table{
+  border-collapse:separate;
+  border-spacing:0;
+  width:max-content;
+  min-width:100%;
+}
+.player-view .print-table th,
+.player-view .print-table td{
+  white-space:nowrap;
+  min-width:58px;
+}
+.player-view .print-table th:nth-child(1),
+.player-view .print-table td:nth-child(1){
+  position:sticky;
+  left:0;
+  z-index:4;
+  min-width:52px;
+  background:#eef6fc;
+}
+.player-view .print-table th:nth-child(2),
+.player-view .print-table td:nth-child(2){
+  position:sticky;
+  left:52px;
+  z-index:3;
+  min-width:130px;
+  max-width:160px;
+  background:#fff;
+  text-align:left;
+}
+.player-view .print-table th:nth-child(1),
+.player-view .print-table th:nth-child(2){
+  background:#eef6fc;
+  z-index:5;
+}
+.player-view .print-table td:nth-child(2){
+  font-weight:800;
+}
+.player-view .print-table th:last-child,
+.player-view .print-table td:last-child{
+  min-width:86px;
+}
+.scroll-hint{
+  display:none;
+  font-size:12px;
+  color:var(--muted);
+  text-align:center;
+  margin-top:7px;
+}
+@media(max-width:600px){
+  .scroll-hint{display:block}
+}
+
+footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
+.install-note{font-size:13px;color:var(--muted);text-align:center;margin-top:8px}
+@media(max-width:480px){
+  h1{font-size:23px}.stats{gap:6px}.stat b{font-size:32px}.stat span{font-size:12px}
+  .inputrow{grid-template-columns:1fr}button{padding:14px}.logo{width:76px;height:76px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <section class="hero">
+    <div class="logo"><div class="bowl"></div><div class="jack"></div></div>
+    <h1>Wappenshaw Ready Reckoner</h1>
+    <p class="sub">Fours • Triples • Pairs</p>
+  </section>
+
+  <div id="cloudStatus" style="margin-top:12px;text-align:center;font-size:13px;color:#647887">
+    Connecting to shared leaderboard…
+  </div>
+  <div class="view-switch">
+    <button id="showAdmin" class="active">Admin</button>
+    <button id="showPlayers">Player Leaderboard</button>
+  </div>
+
+  <div id="adminView" class="admin-view active">
+
+  <section class="card">
+    <label for="players">Number of players</label>
+    <div class="inputrow">
+      <input id="players" type="number" min="0" max="200" value="0" inputmode="numeric">
+    </div>
+    <button class="secondary" id="installBtn" style="display:none">Install App</button>
+    <div class="install-note" id="installNote"></div>
+  </section>
+
+  <section class="card">
+    <div class="result-title" id="title">Best setup for 0 players</div>
+    <div class="stats">
+      <div class="stat"><b id="fours">0</b><span>FOURS</span></div>
+      <div class="stat"><b id="triples">0</b><span>TRIPLES</span></div>
+      <div class="stat"><b id="pairs">0</b><span>PAIRS</span></div>
+    </div>
+    <div class="message" id="used">0 players • enter a number to begin</div>
+    <p class="help">
+      A four uses 8 players (4 v 4), a triple uses 6 players (3 v 3),
+      and a pair uses 4 players (2 v 2). The reckoner favours fours first,
+      then triples, then pairs, while trying to use everybody.
+    </p>
+  </section>
+
+  <section class="card">
+    <div style="font-weight:800;font-size:18px;margin-bottom:8px">Players & Points</div>
+    <p class="help" style="margin-top:0">Highest Up = 4 pts • Win = 3 pts • Draw = 2 pts • Taking Part = 1 pt • Weeks continue automatically with no limit</p>
+
+    <div class="week-controls">
+      <div>
+        <label style="margin-bottom:6px">Weeks</label>
+        <div class="message" id="weekStatus" style="margin:0">Unlimited weeks enabled</div>
+      </div>
+      <button class="secondary no-print" id="printLeaderboard" style="margin:0;padding:12px 14px">Print Leaderboard</button>
+      <button class="secondary no-print" id="copyPlayerLink" style="margin:0;padding:12px 14px">Copy Player Link</button>
+    </div>
+    <button class="secondary no-print" id="undoBtn" style="width:100%;margin:12px 0 16px">↩ Back / Undo Last Mistake</button>
+
+    <div class="player-entry">
+      <input id="playerName" type="text" placeholder="Enter player name">
+      <button id="addPlayer">Add Player</button>
+    </div>
+
+    <div id="playersList" class="players-list"></div>
+
+    <div class="leaderboard-title">Leaderboard</div>
+    <div id="leaderboard" class="leaderboard"></div>
+
+    <div class="leaderboard-title">Monthly Highest Up Shots</div>
+    <div id="monthBoard" class="month-board"></div>
+
+    <div class="leaderboard-title">All Months Overall</div>
+    <div id="overallBoard" class="leaderboard"></div>
+
+    <div class="leaderboard-title">Previous Months Archive</div>
+    <div id="monthArchive" class="month-board"></div>
+
+    <button class="secondary" id="resetMonth">Name & Archive Month / Start New Month</button>
+  </section>
+
+
+  <section class="card print-card">
+    <div class="print-title">
+      <h2 style="margin:0 0 6px">Wappenshaw Current Month Leaderboard</h2>
+      <div>Weekly Scores & Totals — Unlimited Weeks</div>
+    </div>
+    <div style="font-weight:800;font-size:18px;margin-bottom:8px">Printable Weekly Leaderboard</div>
+    <div class="print-table-wrap">
+      <table class="print-table">
+        <thead>
+          <tr id="weeklyHeaderRow">
+            <th>Player</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody id="weeklyLeaderboardBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+
+  </div>
+
+  <div id="playerView" class="player-view">
+    <section class="card">
+      <div style="font-weight:800;font-size:20px;text-align:center">Player Leaderboard</div>
+      <div class="readonly-note">Read only</div>
+      <div class="leaderboard-title">Weekly Points</div>
+      <div class="print-table-wrap">
+        <table class="print-table">
+          <thead>
+            <tr id="publicHeaderRow">
+              <th>Pos</th>
+              <th>Player</th>
+              <th>Total</th>
+              <th>Up Shots</th>
+            </tr>
+          </thead>
+          <tbody id="publicLeaderboardBody"></tbody>
+        </table>
+      </div>
+      <div class="scroll-hint">Swipe left/right to see all weeks and totals</div>
+
+      <div class="leaderboard-title">All Months Overall</div>
+      <div id="publicOverallBoard" class="leaderboard"></div>
+
+      <div class="leaderboard-title">Previous Months</div>
+      <div id="publicMonthArchive" class="month-board"></div>
+    </section>
+  </div>
+
+  <footer>Bowls Wappenshaw Live</footer>
+</div>
+
+<script>
+function compare(a,b){
+  for(let i=0;i<a.length;i++){if(a[i]>b[i])return 1;if(a[i]<b[i])return -1}
+  return 0;
+}
+function bestMix(n){
+  let best=null;
+  // Search all legal mixes. 1 four = 8 players, triple = 6, pair = 4.
+  for(let f=0; f<=Math.floor(n/8); f++){
+    for(let t=0; t<=Math.floor((n-8*f)/6); t++){
+      for(let p=0; p<=Math.floor((n-8*f-6*t)/4); p++){
+        const used=8*f+6*t+4*p;
+        const out=n-used;
+        if(used===0) continue;
+        // Prefer fewest out, then most fours, then triples, then pairs.
+        const score=[-out,f,t,p];
+        const c={f,t,p,used,out,score};
+        if(!best || compare(score,best.score)>0) best=c;
+      }
+    }
+  }
+  return best || {f:0,t:0,p:0,used:0,out:n};
+}
+function update(){
+  let n=parseInt(document.getElementById('players').value,10);
+  if(!Number.isFinite(n)||n<0)n=0;
+  if(n>200)n=200;
+  document.getElementById('players').value=n;
+  const x=bestMix(n);
+  document.getElementById('title').textContent = n===0 ? 'Enter number of players' : `Best setup for ${n} players`;
+  document.getElementById('fours').textContent=x.f;
+  document.getElementById('triples').textContent=x.t;
+  document.getElementById('pairs').textContent=x.p;
+  document.getElementById('used').textContent =
+    n===0 ? '0 players • enter a number to begin' :
+    x.out===0 ? `${x.used} players used • nobody left out`
+              : `${x.used} players used • ${x.out} player${x.out===1?'':'s'} sitting out`;
+}
+
+
+const pointValues = { win:3, draw:2, loss:1 };
+let playerData = [];
+let monthArchives = JSON.parse(localStorage.getItem('wappenshawMonthArchives') || '[]');
+let currentMonthNumber = Number(localStorage.getItem('wappenshawCurrentMonthNumber') || 1);
+let currentMonthName = localStorage.getItem('wappenshawCurrentMonthName') || '';
+let cloudConnected = false;
+let undoStack = JSON.parse(localStorage.getItem('wappenshawUndoStack') || '[]');
+
+function normalisePlayers(players){
+  return (players||[]).map(p=>{
+    const rounds=(p.rounds||[]).map((r,i)=>({
+      ...r,
+      week:Number(r.week||i+1),
+      result:r.result||'loss',
+      basePoints:Number(r.basePoints ?? (r.result==='win'?3:r.result==='draw'?2:1)),
+      points:Number(r.points ?? (r.result==='win'?3:r.result==='draw'?2:1)),
+      shotsFor:(r.shotsFor===null || r.shotsFor===undefined) ? null : Number(r.shotsFor),
+      shotsAgainst:(r.shotsAgainst===null || r.shotsAgainst===undefined) ? null : Number(r.shotsAgainst)
+    }));
+    return {
+      ...p,
+      points:Number(p.points||0),
+      shotsFor:Number(p.shotsFor||0),
+      shotsAgainst:Number(p.shotsAgainst||0),
+      rounds
+    };
+  });
+}
+
+function setCloudStatus(text, good=false){
+  const el=document.getElementById('cloudStatus');
+  if(!el) return;
+  el.textContent=text;
+  el.style.color=good?'#1261a0':'#647887';
+}
+
+function saveUndoStack(){
+  if(undoStack.length>30) undoStack=undoStack.slice(-30);
+  localStorage.setItem('wappenshawUndoStack',JSON.stringify(undoStack));
+}
+
+function rememberState(){
+  undoStack.push(JSON.stringify(playerData));
+  saveUndoStack();
+  updateUndoButton();
+}
+
+function updateUndoButton(){
+  const btn=document.getElementById('undoBtn');
+  if(!btn) return;
+  btn.disabled=undoStack.length===0;
+  btn.textContent=undoStack.length ? '↩ Back / Undo Last Mistake' : '↩ Nothing to Undo';
+  btn.style.opacity=undoStack.length ? '1' : '.55';
+}
+
+function recalculateScores(){
+  playerData.forEach(p=>{
+    (p.rounds||[]).forEach((r,i)=>{
+      r.week=Number(r.week||i+1);
+      r.basePoints=r.result==='win'?3:r.result==='draw'?2:1;
+      r.points=r.basePoints;
+    });
+  });
+
+  const weeks=new Set();
+  playerData.forEach(p=>(p.rounds||[]).forEach(r=>weeks.add(Number(r.week||1))));
+
+  weeks.forEach(week=>{
+    const candidates=[];
+    playerData.forEach(p=>{
+      const r=(p.rounds||[]).find(x=>Number(x.week||1)===week);
+      if(!r || r.result!=='win') return;
+      if(r.shotsFor===null || r.shotsAgainst===null) return;
+      candidates.push({r,diff:Number(r.shotsFor)-Number(r.shotsAgainst)});
+    });
+    if(!candidates.length) return;
+    const best=Math.max(...candidates.map(x=>x.diff));
+    candidates.forEach(x=>{
+      if(x.diff===best) x.r.points=4;
+    });
+  });
+
+  playerData.forEach(p=>{
+    p.points=(p.rounds||[]).reduce((sum,r)=>sum+Number(r.points||0),0);
+    p.shotsFor=(p.rounds||[]).reduce((sum,r)=>sum+(r.shotsFor===null?0:Number(r.shotsFor||0)),0);
+    p.shotsAgainst=(p.rounds||[]).reduce((sum,r)=>sum+(r.shotsAgainst===null?0:Number(r.shotsAgainst||0)),0);
+  });
+}
+
+async function loadPlayers(){
+  try{
+    const res=await fetch('/api/state',{cache:'no-store'});
+    if(!res.ok) throw new Error('cloud unavailable');
+    const state=await res.json();
+    playerData=normalisePlayers(state.players);
+    monthArchives=Array.isArray(state.monthArchives) ? state.monthArchives : monthArchives;
+    currentMonthNumber=Number(state.currentMonthNumber || currentMonthNumber || 1);
+    currentMonthName=String(state.currentMonthName || currentMonthName || '');
+    recalculateScores();
+    cloudConnected=true;
+    localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
+    localStorage.setItem('wappenshawMonthArchives',JSON.stringify(monthArchives));
+    localStorage.setItem('wappenshawCurrentMonthNumber',String(currentMonthNumber));
+    localStorage.setItem('wappenshawCurrentMonthName',currentMonthName);
+    setCloudStatus('Live shared leaderboard connected',true);
+  }catch(e){
+    playerData=normalisePlayers(JSON.parse(localStorage.getItem('wappenshawPlayers')||'[]'));
+    recalculateScores();
+    cloudConnected=false;
+    setCloudStatus('Using this device only until cloud storage is connected');
+  }
+  renderPlayers();
+  updateUndoButton();
+}
+
+async function savePlayers(){
+  recalculateScores();
+  localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
+  localStorage.setItem('wappenshawMonthArchives',JSON.stringify(monthArchives));
+  localStorage.setItem('wappenshawCurrentMonthNumber',String(currentMonthNumber));
+  localStorage.setItem('wappenshawCurrentMonthName',currentMonthName);
+
+  try{
+    const res=await fetch('/api/state',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        players:playerData,
+        results:[],
+        monthArchives,
+        currentMonthNumber,
+        currentMonthName
+      })
+    });
+    if(!res.ok) throw new Error('save failed');
+    cloudConnected=true;
+    setCloudStatus('Live shared leaderboard connected',true);
+    return true;
+  }catch(e){
+    cloudConnected=false;
+    setCloudStatus('Saved on this device only — cloud storage not connected');
+    return false;
+  }
+}
+
+async function undoLastChange(){
+  if(!undoStack.length) return;
+  playerData=normalisePlayers(JSON.parse(undoStack.pop()));
+  saveUndoStack();
+  recalculateScores();
+  await savePlayers();
+  renderPlayers();
+  updateUndoButton();
+}
+
+async function addPlayer(){
+  const input=document.getElementById('playerName');
+  const name=input.value.trim();
+  if(!name) return;
+  rememberState();
+  playerData.push({id:Date.now()+Math.floor(Math.random()*1000), name:name, points:0, rounds:[], shotsFor:0, shotsAgainst:0});
+  input.value='';
+  await savePlayers();
+  renderPlayers();
+}
+
+async function setResult(id,result){
+  const p=playerData.find(x=>x.id===id);
+  if(!p) return;
+  rememberState();
+  const week=(p.rounds||[]).length+1;
+  p.rounds.push({
+    result,
+    basePoints:pointValues[result],
+    points:pointValues[result],
+    week,
+    shotsFor:null,
+    shotsAgainst:null
+  });
+  await savePlayers();
+  renderPlayers();
+}
+
+async function addShots(id){
+  const fEl=document.getElementById(`sf-${id}`);
+  const aEl=document.getElementById(`sa-${id}`);
+  const sf=parseInt(fEl.value,10);
+  const sa=parseInt(aEl.value,10);
+  if(!Number.isFinite(sf) || !Number.isFinite(sa) || sf<0 || sa<0) return;
+
+  const p=playerData.find(x=>x.id===id);
+  if(!p) return;
+
+  const round=(p.rounds||[])[p.rounds.length-1];
+  if(!round){
+    alert('Enter the result first, then add the shots.');
+    return;
+  }
+
+  rememberState();
+  round.shotsFor=sf;
+  round.shotsAgainst=sa;
+
+  await savePlayers();
+  renderPlayers();
+}
+
+function makeMonthSnapshot(){
+  const players=playerData.map(p=>({
+    id:p.id,
+    name:p.name,
+    points:Number(p.points||0),
+    shotsFor:Number(p.shotsFor||0),
+    shotsAgainst:Number(p.shotsAgainst||0),
+    upShots:Number(p.shotsFor||0)-Number(p.shotsAgainst||0),
+    weeks:(p.rounds||[]).map((r,i)=>({
+      week:Number(r.week||i+1),
+      points:Number(r.points||0),
+      result:r.result||'loss',
+      shotsFor:r.shotsFor,
+      shotsAgainst:r.shotsAgainst
+    }))
+  }));
+  return {
+    monthNumber: currentMonthNumber,
+    label: currentMonthName || `Month ${currentMonthNumber}`,
+    archivedAt:new Date().toISOString(),
+    players
+  };
+}
+
+function allKnownNames(){
+  const names=new Map();
+  monthArchives.forEach(m=>(m.players||[]).forEach(p=>names.set(String(p.name).toLowerCase(),p.name)));
+  playerData.forEach(p=>names.set(String(p.name).toLowerCase(),p.name));
+  return [...names.values()];
+}
+
+function overallRows(){
+  return allKnownNames().map(name=>{
+    const key=String(name).toLowerCase();
+    const archivedPoints=monthArchives.reduce((sum,m)=>{
+      const p=(m.players||[]).find(x=>String(x.name).toLowerCase()===key);
+      return sum+Number(p?.points||0);
+    },0);
+    const current=playerData.find(x=>String(x.name).toLowerCase()===key);
+    const currentPoints=Number(current?.points||0);
+    return {name,archivedPoints,currentPoints,total:archivedPoints+currentPoints};
+  }).sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name));
+}
+
+async function startNewMonth(){
+  if(!playerData.length){
+    alert('Add players before starting a new month.');
+    return;
+  }
+
+  const hasResults=playerData.some(p=>(p.rounds||[]).length>0 || Number(p.points||0)>0 || Number(p.shotsFor||0)>0 || Number(p.shotsAgainst||0)>0);
+  if(!hasResults){
+    alert('There are no results to archive yet.');
+    return;
+  }
+
+  let archiveName = currentMonthName || '';
+  archiveName = prompt('Name the month you are archiving (for example: August 2026)', archiveName || `Month ${currentMonthNumber}`) || '';
+  archiveName = archiveName.trim();
+  if(!archiveName) return;
+
+  const nextName = (prompt('Name the new month (for example: September 2026)', '') || '').trim();
+  if(!nextName) return;
+
+  const ok=confirm(`Archive ${archiveName} and start ${nextName}? Player names will stay, but points, weeks and shots will reset to zero.`);
+  if(!ok) return;
+
+  currentMonthName = archiveName;
+  monthArchives.push(makeMonthSnapshot());
+
+  playerData=playerData.map(p=>({
+    id:p.id,
+    name:p.name,
+    points:0,
+    rounds:[],
+    shotsFor:0,
+    shotsAgainst:0
+  }));
+
+  currentMonthNumber += 1;
+  currentMonthName = nextName;
+  undoStack=[];
+  saveUndoStack();
+  await savePlayers();
+  renderPlayers();
+  alert(`${archiveName} archived. ${nextName} is ready. Player names have been kept.`);
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+
+async function removePlayer(id){
+  rememberState();
+  playerData=playerData.filter(x=>x.id!==id);
+  await savePlayers();
+  renderPlayers();
+}
+
+function renderPlayers(){
+  const list=document.getElementById('playersList');
+  if(playerData.length===0){
+    list.innerHTML='<div class="help">Add player names above, then add their result after each game.</div>';
+  } else {
+    list.innerHTML=playerData.map(p=>`
+      <div class="player-row">
+        <div class="player-meta">
+          <div class="points-pill">${p.points}</div>
+          <div>
+            <div class="player-name">${escapeHtml(p.name)}</div>
+            <div class="help" style="margin:2px 0 0">${p.rounds.length} result${p.rounds.length===1?'':'s'} • next = Week ${p.rounds.length+1}</div>
+          </div>
+        </div>
+        <div>
+          <div class="player-controls">
+            <button class="result-btn" onclick="setResult(${p.id},'win')">Win +3</button>
+            <button class="result-btn" onclick="setResult(${p.id},'draw')">Draw +2</button>
+            <button class="result-btn" onclick="setResult(${p.id},'loss')">Taking Part +1</button>
+          <button class="remove-btn" onclick="removePlayer(${p.id})">Remove</button>
+          </div>
+          <div class="shot-entry">
+            <input id="sf-${p.id}" type="number" min="0" placeholder="Shots For">
+            <input id="sa-${p.id}" type="number" min="0" placeholder="Shots Against">
+            <button class="result-btn shot-btn" onclick="addShots(${p.id})">Add Shots</button>
+          </div>
+          <div class="shot-summary">
+            For ${p.shotsFor} • Against ${p.shotsAgainst} • Up ${(p.shotsFor-p.shotsAgainst)>=0?'+':''}${p.shotsFor-p.shotsAgainst}
+            ${(p.rounds||[]).some(r=>r.result==='win' && Number(r.points)===4) ? ' • Highest Up awarded' : ''}
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  const ranked=[...playerData].sort((a,b)=>b.points-a.points || a.name.localeCompare(b.name));
+  const lb=document.getElementById('leaderboard');
+  lb.innerHTML=ranked.length ? ranked.map((p,i)=>`
+    <div class="leader-row">
+      <div class="rank">${i+1}</div>
+      <div>${escapeHtml(p.name)}</div>
+      <div class="total">${p.points} pts</div>
+    </div>`).join('') : '<div class="help" style="padding:12px">No players added yet.</div>';
+
+  const byShots=[...playerData].sort((a,b)=>
+    ((b.shotsFor-b.shotsAgainst)-(a.shotsFor-a.shotsAgainst)) || a.name.localeCompare(b.name)
+  );
+  const mb=document.getElementById('monthBoard');
+  mb.innerHTML=byShots.length ? byShots.map((p,i)=>{
+    const diff=p.shotsFor-p.shotsAgainst;
+    return `<div class="month-row">
+      <div class="rank">${i+1}</div>
+      <div>${escapeHtml(p.name)}<div class="help" style="margin:2px 0 0">For ${p.shotsFor} • Against ${p.shotsAgainst}</div></div>
+      <div class="total">${diff>=0?'+':''}${diff}</div>
+    </div>`;
+  }).join('') : '<div class="help" style="padding:12px">No shots entered yet.</div>';
+
+  const wb=document.getElementById('weeklyLeaderboardBody');
+
+  // Unlimited weeks: create as many week columns as the longest player history needs.
+  const maxWeek=Math.max(0,...playerData.map(p=>(p.rounds||[]).length));
+  const weekStatus=document.getElementById('weekStatus');
+  if(weekStatus) weekStatus.textContent=`${currentMonthName || ('Month '+currentMonthNumber)} • Unlimited weeks enabled • ${maxWeek ? 'Week '+maxWeek+' reached' : 'ready for Week 1'}`;
+
+  const weekly=[...playerData].map(p=>{
+    const weeks=Array.from({length:maxWeek},(_,i)=>{
+      const weekNo=i+1;
+      return (p.rounds||[])
+        .filter((r,idx)=>Number(r.week||idx+1)===weekNo)
+        .reduce((sum,r)=>sum+Number(r.points||0),0);
+    });
+    return {...p,weeks,total:weeks.reduce((a,b)=>a+b,0)};
+  }).sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name));
+
+  const weeklyHeader=document.getElementById('weeklyHeaderRow');
+  weeklyHeader.innerHTML='<th>Player</th>'+
+    Array.from({length:maxWeek},(_,i)=>`<th>W${i+1}</th>`).join('')+
+    '<th>Total</th>';
+
+  wb.innerHTML = weekly.length ? weekly.map(p=>`
+    <tr>
+      <td class="name">${escapeHtml(p.name)}</td>
+      ${p.weeks.map(v=>`<td>${v}</td>`).join('')}
+      <td><b>${p.total}</b></td>
+    </tr>`).join('') :
+    `<tr><td colspan="${Math.max(2,maxWeek+2)}">No players added yet.</td></tr>`;
+
+
+  const overall=overallRows();
+  const overallHtml=overall.length ? overall.map((p,i)=>`
+    <div class="leader-row">
+      <div class="rank">${i+1}</div>
+      <div>${escapeHtml(p.name)}<div class="help" style="margin:2px 0 0">Previous months ${p.archivedPoints} • Current month ${p.currentPoints}</div></div>
+      <div class="total">${p.total} pts</div>
+    </div>`).join('') : '<div class="help" style="padding:12px">No monthly scores yet.</div>';
+
+  const overallBoard=document.getElementById('overallBoard');
+  if(overallBoard) overallBoard.innerHTML=overallHtml;
+  const publicOverallBoard=document.getElementById('publicOverallBoard');
+  if(publicOverallBoard) publicOverallBoard.innerHTML=overallHtml;
+
+  const archiveHtml=monthArchives.length ? [...monthArchives].reverse().map(m=>{
+    const ranked=[...(m.players||[])].sort((a,b)=>Number(b.points||0)-Number(a.points||0) || String(a.name).localeCompare(String(b.name)));
+    return `<div style="padding:12px;border-bottom:1px solid var(--line)">
+      <div style="font-weight:800;margin-bottom:8px">${escapeHtml(m.label||('Month '+m.monthNumber))}</div>
+      ${ranked.map((p,i)=>`<div style="display:grid;grid-template-columns:32px 1fr 78px;gap:8px;padding:8px 0;border-top:1px solid var(--line)">
+        <div>${i+1}</div>
+        <div>
+          <div style="font-weight:700">${escapeHtml(p.name)}</div>
+          <div class="help" style="margin:2px 0 0">
+            For ${Number(p.shotsFor||0)} • Against ${Number(p.shotsAgainst||0)} • ${Number(p.upShots||0)>=0 ? 'Up +' : 'Down '}${Number(p.upShots||0)>=0 ? Number(p.upShots||0) : Math.abs(Number(p.upShots||0))}
+          </div>
+        </div>
+        <div style="text-align:right;font-weight:800">${Number(p.points||0)} pts</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('') : '<div class="help" style="padding:12px">No previous months archived yet.</div>';
+
+  const archiveBoard=document.getElementById('monthArchive');
+  if(archiveBoard) archiveBoard.innerHTML=archiveHtml;
+  const publicArchiveBoard=document.getElementById('publicMonthArchive');
+  if(publicArchiveBoard) publicArchiveBoard.innerHTML=archiveHtml;
+
+  const publicBody=document.getElementById('publicLeaderboardBody');
+  const publicHeader=document.getElementById('publicHeaderRow');
+
+  publicHeader.innerHTML='<th>Pos</th><th>Player</th>'+
+    Array.from({length:maxWeek},(_,i)=>`<th>W${i+1}</th>`).join('')+
+    '<th>Total</th><th>Up Shots</th>';
+
+  const publicRows=[...weekly].sort((a,b)=>
+    b.total-a.total ||
+    ((b.shotsFor-b.shotsAgainst)-(a.shotsFor-a.shotsAgainst)) ||
+    a.name.localeCompare(b.name)
+  );
+
+  publicBody.innerHTML = publicRows.length ? publicRows.map((p,i)=>{
+    const up=p.shotsFor-p.shotsAgainst;
+    return `<tr>
+      <td>${i+1}</td>
+      <td class="name">${escapeHtml(p.name)}</td>
+      ${p.weeks.map(v=>`<td>${v}</td>`).join('')}
+      <td><b>${p.total}</b></td>
+      <td>${up>=0?'+':''}${up}</td>
+    </tr>`;
+  }).join('') :
+    `<tr><td colspan="${Math.max(4,maxWeek+4)}">No players added yet.</td></tr>`;
+}
+
+
+function setView(view){
+  const admin=document.getElementById('adminView');
+  const players=document.getElementById('playerView');
+  const aBtn=document.getElementById('showAdmin');
+  const pBtn=document.getElementById('showPlayers');
+  if(view==='players'){
+    admin.style.display='none';
+    players.style.display='block';
+    aBtn.classList.remove('active');
+    pBtn.classList.add('active');
+  } else {
+    admin.style.display='block';
+    players.style.display='none';
+    pBtn.classList.remove('active');
+    aBtn.classList.add('active');
+  }
+}
+document.getElementById('showAdmin').addEventListener('click',()=>setView('admin'));
+document.getElementById('showPlayers').addEventListener('click',()=>{renderPlayers();setView('players')});
+
+document.getElementById('printLeaderboard').addEventListener('click',()=>window.print());
+document.getElementById('undoBtn').addEventListener('click',undoLastChange);
+document.getElementById('resetMonth').addEventListener('click',startNewMonth);
+document.getElementById('addPlayer').addEventListener('click',addPlayer);
+document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer()});
+
+document.getElementById('players').addEventListener('input',update);
+document.getElementById('players').addEventListener('keydown',e=>{if(e.key==='Enter')update()});
+
+let deferredPrompt;
+const installBtn=document.getElementById('installBtn');
+window.addEventListener('beforeinstallprompt',(e)=>{e.preventDefault();deferredPrompt=e;installBtn.style.display='block'});
+installBtn.addEventListener('click',async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt(); await deferredPrompt.userChoice;
+  deferredPrompt=null; installBtn.style.display='none';
+});
+window.addEventListener('appinstalled',()=>{document.getElementById('installNote').textContent='App installed successfully.'});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('service-worker.js'))}
+loadPlayers().then(()=>{update();applyRequestedView();});
+
+document.getElementById('copyPlayerLink')?.addEventListener('click',async()=>{
+  const url=new URL(window.location.href);
+  url.search='';
+  url.searchParams.set('view','players');
+  try{
+    await navigator.clipboard.writeText(url.toString());
+    alert('Player leaderboard link copied.');
+  }catch{
+    prompt('Copy this Player Leaderboard link:',url.toString());
+  }
+});
+
+function applyRequestedView(){
+  const requested=new URLSearchParams(location.search).get('view');
+  if(requested==='players'){
+    setView('players');
+    document.querySelector('.view-switch')?.style.setProperty('display','none');
+    document.getElementById('cloudStatus')?.style.setProperty('display','none');
+  }else{
+    setView('admin');
+  }
+}
+
+setInterval(async()=>{
+  const requested=new URLSearchParams(location.search).get('view');
+  if(requested==='players'){
+    await loadPlayers();
+  }
+},15000);
+
+</script>
+</body>
+</html>

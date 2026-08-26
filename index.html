@@ -261,13 +261,20 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
 
     <div class="leaderboard-title">Monthly Highest Up Shots</div>
     <div id="monthBoard" class="month-board"></div>
-    <button class="secondary" id="resetMonth">Start New Month</button>
+
+    <div class="leaderboard-title">All Months Overall</div>
+    <div id="overallBoard" class="leaderboard"></div>
+
+    <div class="leaderboard-title">Previous Months Archive</div>
+    <div id="monthArchive" class="month-board"></div>
+
+    <button class="secondary" id="resetMonth">Archive Month & Start New Month</button>
   </section>
 
 
   <section class="card print-card">
     <div class="print-title">
-      <h2 style="margin:0 0 6px">Wappenshaw Monthly Leaderboard</h2>
+      <h2 style="margin:0 0 6px">Wappenshaw Current Month Leaderboard</h2>
       <div>Weekly Scores & Totals — Unlimited Weeks</div>
     </div>
     <div style="font-weight:800;font-size:18px;margin-bottom:8px">Printable Weekly Leaderboard</div>
@@ -306,6 +313,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px}
         </table>
       </div>
       <div class="scroll-hint">Swipe left/right to see all weeks and totals</div>
+
+      <div class="leaderboard-title">All Months Overall</div>
+      <div id="publicOverallBoard" class="leaderboard"></div>
+
+      <div class="leaderboard-title">Previous Months</div>
+      <div id="publicMonthArchive" class="month-board"></div>
     </section>
   </div>
 
@@ -354,6 +367,8 @@ function update(){
 
 const pointValues = { win:3, draw:2, loss:1 };
 let playerData = [];
+let monthArchives = JSON.parse(localStorage.getItem('wappenshawMonthArchives') || '[]');
+let currentMonthNumber = Number(localStorage.getItem('wappenshawCurrentMonthNumber') || 1);
 let cloudConnected = false;
 let undoStack = JSON.parse(localStorage.getItem('wappenshawUndoStack') || '[]');
 
@@ -444,9 +459,13 @@ async function loadPlayers(){
     if(!res.ok) throw new Error('cloud unavailable');
     const state=await res.json();
     playerData=normalisePlayers(state.players);
+    monthArchives=Array.isArray(state.monthArchives) ? state.monthArchives : monthArchives;
+    currentMonthNumber=Number(state.currentMonthNumber || currentMonthNumber || 1);
     recalculateScores();
     cloudConnected=true;
     localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
+    localStorage.setItem('wappenshawMonthArchives',JSON.stringify(monthArchives));
+    localStorage.setItem('wappenshawCurrentMonthNumber',String(currentMonthNumber));
     setCloudStatus('Live shared leaderboard connected',true);
   }catch(e){
     playerData=normalisePlayers(JSON.parse(localStorage.getItem('wappenshawPlayers')||'[]'));
@@ -461,12 +480,19 @@ async function loadPlayers(){
 async function savePlayers(){
   recalculateScores();
   localStorage.setItem('wappenshawPlayers',JSON.stringify(playerData));
+  localStorage.setItem('wappenshawMonthArchives',JSON.stringify(monthArchives));
+  localStorage.setItem('wappenshawCurrentMonthNumber',String(currentMonthNumber));
 
   try{
     const res=await fetch('/api/state',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({players:playerData,results:[]})
+      body:JSON.stringify({
+        players:playerData,
+        results:[],
+        monthArchives,
+        currentMonthNumber
+      })
     });
     if(!res.ok) throw new Error('save failed');
     cloudConnected=true;
@@ -541,6 +567,84 @@ async function addShots(id){
   renderPlayers();
 }
 
+function makeMonthSnapshot(){
+  const players=playerData.map(p=>({
+    id:p.id,
+    name:p.name,
+    points:Number(p.points||0),
+    shotsFor:Number(p.shotsFor||0),
+    shotsAgainst:Number(p.shotsAgainst||0),
+    upShots:Number(p.shotsFor||0)-Number(p.shotsAgainst||0),
+    weeks:(p.rounds||[]).map((r,i)=>({
+      week:Number(r.week||i+1),
+      points:Number(r.points||0),
+      result:r.result||'loss',
+      shotsFor:r.shotsFor,
+      shotsAgainst:r.shotsAgainst
+    }))
+  }));
+  return {
+    monthNumber: currentMonthNumber,
+    label:`Month ${currentMonthNumber}`,
+    archivedAt:new Date().toISOString(),
+    players
+  };
+}
+
+function allKnownNames(){
+  const names=new Map();
+  monthArchives.forEach(m=>(m.players||[]).forEach(p=>names.set(String(p.name).toLowerCase(),p.name)));
+  playerData.forEach(p=>names.set(String(p.name).toLowerCase(),p.name));
+  return [...names.values()];
+}
+
+function overallRows(){
+  return allKnownNames().map(name=>{
+    const key=String(name).toLowerCase();
+    const archivedPoints=monthArchives.reduce((sum,m)=>{
+      const p=(m.players||[]).find(x=>String(x.name).toLowerCase()===key);
+      return sum+Number(p?.points||0);
+    },0);
+    const current=playerData.find(x=>String(x.name).toLowerCase()===key);
+    const currentPoints=Number(current?.points||0);
+    return {name,archivedPoints,currentPoints,total:archivedPoints+currentPoints};
+  }).sort((a,b)=>b.total-a.total || a.name.localeCompare(b.name));
+}
+
+async function startNewMonth(){
+  if(!playerData.length){
+    alert('Add players before starting a new month.');
+    return;
+  }
+
+  const hasResults=playerData.some(p=>(p.rounds||[]).length>0 || Number(p.points||0)>0 || Number(p.shotsFor||0)>0 || Number(p.shotsAgainst||0)>0);
+  if(!hasResults){
+    alert('There are no results to archive yet.');
+    return;
+  }
+
+  const ok=confirm(`Archive Month ${currentMonthNumber} and start Month ${currentMonthNumber+1}? Player names will stay, but points, weeks and shots will reset to zero.`);
+  if(!ok) return;
+
+  monthArchives.push(makeMonthSnapshot());
+
+  playerData=playerData.map(p=>({
+    id:p.id,
+    name:p.name,
+    points:0,
+    rounds:[],
+    shotsFor:0,
+    shotsAgainst:0
+  }));
+
+  currentMonthNumber += 1;
+  undoStack=[];
+  saveUndoStack();
+  await savePlayers();
+  renderPlayers();
+  alert(`Month ${currentMonthNumber-1} archived. Month ${currentMonthNumber} is ready. Player names have been kept.`);
+}
+
 function escapeHtml(s){
   return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 }
@@ -613,7 +717,7 @@ function renderPlayers(){
   // Unlimited weeks: create as many week columns as the longest player history needs.
   const maxWeek=Math.max(0,...playerData.map(p=>(p.rounds||[]).length));
   const weekStatus=document.getElementById('weekStatus');
-  if(weekStatus) weekStatus.textContent=`Unlimited weeks enabled • ${maxWeek ? 'Week '+maxWeek+' reached' : 'ready for Week 1'}`;
+  if(weekStatus) weekStatus.textContent=`Month ${currentMonthNumber} • Unlimited weeks enabled • ${maxWeek ? 'Week '+maxWeek+' reached' : 'ready for Week 1'}`;
 
   const weekly=[...playerData].map(p=>{
     const weeks=Array.from({length:maxWeek},(_,i)=>{
@@ -637,6 +741,35 @@ function renderPlayers(){
       <td><b>${p.total}</b></td>
     </tr>`).join('') :
     `<tr><td colspan="${Math.max(2,maxWeek+2)}">No players added yet.</td></tr>`;
+
+
+  const overall=overallRows();
+  const overallHtml=overall.length ? overall.map((p,i)=>`
+    <div class="leader-row">
+      <div class="rank">${i+1}</div>
+      <div>${escapeHtml(p.name)}<div class="help" style="margin:2px 0 0">Previous months ${p.archivedPoints} • Current month ${p.currentPoints}</div></div>
+      <div class="total">${p.total} pts</div>
+    </div>`).join('') : '<div class="help" style="padding:12px">No monthly scores yet.</div>';
+
+  const overallBoard=document.getElementById('overallBoard');
+  if(overallBoard) overallBoard.innerHTML=overallHtml;
+  const publicOverallBoard=document.getElementById('publicOverallBoard');
+  if(publicOverallBoard) publicOverallBoard.innerHTML=overallHtml;
+
+  const archiveHtml=monthArchives.length ? [...monthArchives].reverse().map(m=>{
+    const ranked=[...(m.players||[])].sort((a,b)=>Number(b.points||0)-Number(a.points||0) || String(a.name).localeCompare(String(b.name)));
+    return `<div style="padding:12px;border-bottom:1px solid var(--line)">
+      <div style="font-weight:800;margin-bottom:8px">${escapeHtml(m.label||('Month '+m.monthNumber))}</div>
+      ${ranked.map((p,i)=>`<div style="display:grid;grid-template-columns:32px 1fr 70px;gap:8px;padding:5px 0">
+        <div>${i+1}</div><div>${escapeHtml(p.name)}</div><div style="text-align:right;font-weight:800">${Number(p.points||0)} pts</div>
+      </div>`).join('')}
+    </div>`;
+  }).join('') : '<div class="help" style="padding:12px">No previous months archived yet.</div>';
+
+  const archiveBoard=document.getElementById('monthArchive');
+  if(archiveBoard) archiveBoard.innerHTML=archiveHtml;
+  const publicArchiveBoard=document.getElementById('publicMonthArchive');
+  if(publicArchiveBoard) publicArchiveBoard.innerHTML=archiveHtml;
 
   const publicBody=document.getElementById('publicLeaderboardBody');
   const publicHeader=document.getElementById('publicHeaderRow');
@@ -687,6 +820,7 @@ document.getElementById('showPlayers').addEventListener('click',()=>{renderPlaye
 
 document.getElementById('printLeaderboard').addEventListener('click',()=>window.print());
 document.getElementById('undoBtn').addEventListener('click',undoLastChange);
+document.getElementById('resetMonth').addEventListener('click',startNewMonth);
 document.getElementById('addPlayer').addEventListener('click',addPlayer);
 document.getElementById('playerName').addEventListener('keydown',e=>{if(e.key==='Enter')addPlayer()});
 
